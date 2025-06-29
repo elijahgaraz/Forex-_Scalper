@@ -13,6 +13,9 @@ class MainApplication(tk.Tk):
         self.geometry("600x400")
 
         self.settings = Settings.load()
+        # The Trader instance is initialized with the settings loaded at startup.
+        # If active_environment is changed in settings, the application
+        # currently needs to be restarted for the Trader to use the new environment.
         self.trader = Trader(self.settings)
 
         container = ttk.Frame(self)
@@ -187,18 +190,111 @@ class SettingsPage(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-        ttk.Label(self, text="Settings Page").pack(pady=10)
-        ttk.Label(self, text="API Key").pack()
-        self.api_key_entry = ttk.Entry(self)
-        self.api_key_entry.insert(0, controller.settings.api_key)
-        self.api_key_entry.pack()
-        ttk.Button(self, text="Save", command=self.save).pack(pady=10)
-        ttk.Button(self, text="Back", command=lambda: controller.show_frame("TradingPage")).pack()
+        self.configure(padding="10 10 10 10")
 
-    def save(self):
-        self.controller.settings.api_key = self.api_key_entry.get()
-        self.controller.settings.save()
+        ttk.Label(self, text="Application Settings", font=("Arial", 16, "bold")).pack(pady=(0,15))
 
+        # --- Environment Selection ---
+        env_frame = ttk.Frame(self)
+        env_frame.pack(fill="x", pady=5)
+
+        ttk.Label(env_frame, text="Active Environment:").pack(side="left", padx=(0,10))
+        self.environment_var = tk.StringVar(value=self.controller.settings.active_environment.capitalize())
+        self.environment_cb = ttk.Combobox(
+            env_frame,
+            textvariable=self.environment_var,
+            values=["Demo", "Live"],
+            state="readonly"
+        )
+        self.environment_cb.pack(side="left")
+        self.environment_cb.bind("<<ComboboxSelected>>", self.on_environment_change)
+
+        # --- Credentials Frame ---
+        # Using Labelframe for better visual grouping of credentials
+        credentials_frame = ttk.Labelframe(self, text="Environment Credentials", padding="10")
+        credentials_frame.pack(fill="x", expand=True, pady=10)
+
+        # API Key
+        ttk.Label(credentials_frame, text="API Key:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.api_key_var = tk.StringVar()
+        self.api_key_entry = ttk.Entry(credentials_frame, textvariable=self.api_key_var, width=50)
+        self.api_key_entry.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+
+        # Account ID
+        ttk.Label(credentials_frame, text="Account ID:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.account_id_var = tk.StringVar()
+        self.account_id_entry = ttk.Entry(credentials_frame, textvariable=self.account_id_var, width=50)
+        self.account_id_entry.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+
+        # Broker URL
+        ttk.Label(credentials_frame, text="Broker URL:").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.broker_url_var = tk.StringVar()
+        self.broker_url_entry = ttk.Entry(credentials_frame, textvariable=self.broker_url_var, width=50)
+        self.broker_url_entry.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+
+        credentials_frame.columnconfigure(1, weight=1) # Make entry fields expand
+
+        # --- Action Buttons ---
+        action_frame = ttk.Frame(self)
+        action_frame.pack(fill="x", pady=10)
+
+        self.save_button = ttk.Button(action_frame, text="Save Settings", command=self.save_settings, style="Accent.TButton")
+        self.save_button.pack(side="left", padx=5)
+
+        self.back_button = ttk.Button(action_frame, text="Back to Trading", command=lambda: controller.show_frame("TradingPage"))
+        self.back_button.pack(side="right", padx=5)
+
+        # Load initial values when frame is created
+        self.load_current_environment_settings()
+
+    def load_current_environment_settings(self):
+        """Loads credentials into UI fields based on selected environment."""
+        env = self.environment_var.get().lower() # 'demo' or 'live'
+        settings = self.controller.settings
+
+        if env == 'demo':
+            self.api_key_var.set(settings.demo_api_key)
+            self.account_id_var.set(settings.demo_account_id)
+            self.broker_url_var.set(settings.demo_broker_url)
+        elif env == 'live':
+            self.api_key_var.set(settings.live_api_key)
+            self.account_id_var.set(settings.live_account_id)
+            self.broker_url_var.set(settings.live_broker_url)
+
+    def on_environment_change(self, event=None):
+        """Handles environment selection change."""
+        # First, save any pending changes to the *previously* selected environment
+        # This is a bit complex if we want to save before switching.
+        # For simplicity now, we can prompt user or just load.
+        # Let's just load for now. A more robust solution might ask to save current changes.
+        self.load_current_environment_settings()
+        # The active_environment in actual settings will be updated on Save.
+
+    def save_settings(self):
+        """Saves the currently displayed credentials to the selected environment in settings."""
+        env = self.environment_var.get().lower()
+        settings = self.controller.settings
+
+        settings.active_environment = env # Update active environment
+
+        api_key = self.api_key_var.get()
+        account_id = self.account_id_var.get()
+        broker_url = self.broker_url_var.get()
+
+        if env == 'demo':
+            settings.demo_api_key = api_key
+            settings.demo_account_id = account_id
+            settings.demo_broker_url = broker_url
+        elif env == 'live':
+            settings.live_api_key = api_key
+            settings.live_account_id = account_id
+            settings.live_broker_url = broker_url
+
+        settings.save()
+        # Optionally, provide feedback to the user
+        # For example, using the TradingPage's feedback label if we passed a reference
+        # or adding a temporary status label to SettingsPage itself.
+        print("Settings saved.") # Placeholder feedback
 
 class ActivityPage(ttk.Frame):
     def __init__(self, parent, controller):
