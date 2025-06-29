@@ -17,6 +17,8 @@ class MainApplication(tk.Tk):
         # If active_environment is changed in settings, the application
         # currently needs to be restarted for the Trader to use the new environment.
         self.trader = Trader(self.settings)
+        # Maintain a background connection to allow unattended operation
+        self.trader.start_heartbeat()
 
         container = ttk.Frame(self)
         container.pack(fill="both", expand=True)
