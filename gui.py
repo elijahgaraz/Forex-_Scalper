@@ -110,6 +110,27 @@ class TradingPage(ttk.Frame):
         self.feedback_label = ttk.Label(self, text="", anchor="center")
         self.feedback_label.grid(row=2, column=0, columnspan=2, padx=5, pady=10, sticky="ew")
 
+        # --- Account Info Frame ---
+        account_frame = ttk.Labelframe(self, text="Account Info", padding="10 10 10 10")
+        account_frame.grid(row=3, column=0, columnspan=2, padx=5, pady=5, sticky="nsew")
+
+        self.account_id_label = ttk.Label(account_frame, text="Account ID: -")
+        self.account_id_label.grid(row=0, column=0, padx=5, pady=2, sticky="w")
+
+        self.balance_label = ttk.Label(account_frame, text="Balance: -")
+        self.balance_label.grid(row=1, column=0, padx=5, pady=2, sticky="w")
+
+        self.equity_label = ttk.Label(account_frame, text="Equity: -")
+        self.equity_label.grid(row=1, column=1, padx=5, pady=2, sticky="w")
+
+        self.margin_label = ttk.Label(account_frame, text="Margin: -")
+        self.margin_label.grid(row=2, column=0, padx=5, pady=2, sticky="w")
+
+        account_frame.columnconfigure(1, weight=1)
+
+        # start periodic account info updates
+        self.update_account_info()
+
         # Configure column weights for resizing behavior of the main TradingPage frame
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
@@ -186,6 +207,23 @@ class TradingPage(ttk.Frame):
                 self.feedback_label.config(text=f"Trade failed: An unexpected error occurred - {e}", foreground="red")
         else: # 'hold' or other decision
             self.feedback_label.config(text=f"No trade executed: Strategy decided to '{decision}'.", foreground="orange")
+
+    def update_account_info(self):
+        """Refresh displayed account details."""
+        is_connected, _ = self.controller.trader.get_connection_status()
+        if is_connected:
+            info = self.controller.trader.get_account_info()
+            self.account_id_label.config(text=f"Account ID: {info.get('account_id', '-')}")
+            self.balance_label.config(text=f"Balance: {info.get('balance', 0):.2f}")
+            self.equity_label.config(text=f"Equity: {info.get('equity', 0):.2f}")
+            self.margin_label.config(text=f"Margin: {info.get('margin', 0):.2f}")
+        else:
+            self.account_id_label.config(text="Account ID: -")
+            self.balance_label.config(text="Balance: -")
+            self.equity_label.config(text="Equity: -")
+            self.margin_label.config(text="Margin: -")
+        # schedule next update
+        self.after(5000, self.update_account_info)
 
 
 class SettingsPage(ttk.Frame):

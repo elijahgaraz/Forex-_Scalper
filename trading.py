@@ -22,6 +22,8 @@ class Trader:
         # Connection state and account summary
         self.is_connected: bool = False
         self.connection_message: str = "Disconnected"
+        # Unique identifier of the trading account (using SenderCompID as a stand-in)
+        self.account_id: str = ""
         # Example structure, can be expanded based on actual data from FIX
         self.account_summary: dict = {
             'balance': 0.0,
@@ -66,6 +68,7 @@ class Trader:
         # Simulate successful connection
         self.is_connected = True
         self.connection_message = "Connected"
+        self.account_id = self.fix_sender_comp_id  # Mock retrieval of account id
         self.account_summary = {
             'balance': 10000.00,
             'equity': 10500.50,
@@ -81,6 +84,7 @@ class Trader:
         print(f"[{self.mode}] Attempting to disconnect...")
         self.is_connected = False
         self.connection_message = "Disconnected"
+        self.account_id = ""
         self.account_summary = {
             'balance': 0.0,
             'equity': 0.0,
@@ -149,7 +153,9 @@ class Trader:
 
     def get_account_info(self) -> dict:
         print(f"[{self.mode}] Fetching account info (SenderCompID: {self.fix_sender_comp_id})")
-        return self.get_account_summary()
+        info = self.get_account_summary()
+        info['account_id'] = self.account_id or self.fix_sender_comp_id
+        return info
 
     def start_heartbeat(self, interval: float = 30.0) -> None:
         """Start a background thread that maintains the connection."""
