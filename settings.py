@@ -15,9 +15,14 @@ class Settings:
     @classmethod
     def load(cls) -> 'Settings':
         if os.path.exists(CONFIG_FILE):
-            with open(CONFIG_FILE, 'r') as f:
-                data = json.load(f)
-            return cls(**data)
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    data = json.load(f)
+                return cls(**data)
+            except json.JSONDecodeError:
+                print(f"Warning: Could not decode JSON from {CONFIG_FILE}. Using default settings.")
+            except Exception as e:
+                print(f"Warning: Could not load settings from {CONFIG_FILE} due to {e}. Using default settings.")
         return cls()
 
     def save(self) -> None:
