@@ -1,9 +1,9 @@
 """Tkinter GUI for the scalping application."""
 import tkinter as tk
 from tkinter import ttk
-from .settings import Settings
-from .trading import Trader
-from .strategies import SafeStrategy, ModerateStrategy, AggressiveStrategy
+from settings import Settings
+from trading import Trader
+from strategies import SafeStrategy, ModerateStrategy, AggressiveStrategy
 
 
 class MainApplication(tk.Tk):
@@ -36,18 +36,43 @@ class TradingPage(ttk.Frame):
         super().__init__(parent)
         self.controller = controller
         ttk.Label(self, text="Trading Page").pack(pady=10)
-        ttk.Button(self, text="Settings", command=lambda: controller.show_frame("SettingsPage")).pack()
-        ttk.Button(self, text="Activity", command=lambda: controller.show_frame("ActivityPage")).pack()
+
+        # Strategy Selection
+        ttk.Label(self, text="Select Strategy:").pack(pady=(10,0))
+        self.strategy_var = tk.StringVar()
+        self.strategy_combobox = ttk.Combobox(
+            self,
+            textvariable=self.strategy_var,
+            values=["SafeStrategy", "ModerateStrategy", "AggressiveStrategy"]
+        )
+        self.strategy_combobox.pack()
+        self.strategy_combobox.set("SafeStrategy") # Default value
+
+        ttk.Button(self, text="Settings", command=lambda: controller.show_frame("SettingsPage")).pack(pady=5)
+        ttk.Button(self, text="Activity", command=lambda: controller.show_frame("ActivityPage")).pack(pady=5)
         ttk.Button(self, text="Execute Trade", command=self.execute_trade).pack(pady=20)
         self.feedback_label = ttk.Label(self, text="")
         self.feedback_label.pack(pady=5)
 
     def execute_trade(self):
-        # Dummy example using SafeStrategy
-        strategy = SafeStrategy()
-        decision = strategy.decide(None)
+        selected_strategy_name = self.strategy_var.get()
+        strategy_class_map = {
+            "SafeStrategy": SafeStrategy,
+            "ModerateStrategy": ModerateStrategy,
+            "AggressiveStrategy": AggressiveStrategy
+        }
+
+        strategy_class = strategy_class_map.get(selected_strategy_name)
+        if not strategy_class:
+            self.feedback_label.config(text="Invalid strategy selected.", foreground="red")
+            return
+
+        strategy = strategy_class()
+        decision = strategy.decide(None) # Market data is still None
+
         if decision in ("buy", "sell"):
             try:
+                # TODO: Get symbol and volume from UI inputs
                 self.controller.trader.open_trade("EURUSD", 0.01, decision)
                 self.feedback_label.config(text="Trade executed successfully!", foreground="green")
             except Exception as e:
