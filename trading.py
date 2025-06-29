@@ -1,5 +1,8 @@
 """Trading interface for IC Markets (cTrader)."""
 from typing import List, Optional
+import threading
+import time
+import uuid
 
 # Placeholder for actual cTrader API integration
 class Trader:
@@ -20,7 +23,19 @@ class Trader:
         self.is_connected: bool = False
         self.connection_message: str = "Disconnected"
         # Example structure, can be expanded based on actual data from FIX
-        self.account_summary: dict = {'balance': 0.0, 'equity': 0.0, 'margin': 0.0}
+        self.account_summary: dict = {
+            'balance': 0.0,
+            'equity': 0.0,
+            'margin': 0.0,
+        }
+
+        # Track open trades
+        self.open_trades: List[dict] = []
+        self._trade_counter: int = 1
+
+        # Heartbeat thread management
+        self._running: bool = False
+        self._heartbeat_thread: Optional[threading.Thread] = None
 
         print(f"Trader initialized for {self.mode} connection.")
         print(f"  Host: {self.fix_host}:{self.fix_port}")
@@ -51,7 +66,11 @@ class Trader:
         # Simulate successful connection
         self.is_connected = True
         self.connection_message = "Connected"
-        self.account_summary = {'balance': 10000.00, 'equity': 10500.50, 'margin': 150.25} # Mock data
+        self.account_summary = {
+            'balance': 10000.00,
+            'equity': 10500.50,
+            'margin': 150.25,
+        }  # Mock data
         print(f"[{self.mode}] Successfully connected. Account Summary: {self.account_summary}")
         return True
 
@@ -62,7 +81,11 @@ class Trader:
         print(f"[{self.mode}] Attempting to disconnect...")
         self.is_connected = False
         self.connection_message = "Disconnected"
-        self.account_summary = {'balance': 0.0, 'equity': 0.0, 'margin': 0.0} # Clear data
+        self.account_summary = {
+            'balance': 0.0,
+            'equity': 0.0,
+            'margin': 0.0,
+        }  # Clear data
         print(f"[{self.mode}] Successfully disconnected.")
 
     def get_connection_status(self) -> tuple[bool, str]:
@@ -95,18 +118,57 @@ class Trader:
 
         print(trade_details)
         print(f"  (Using SenderCompID: {self.fix_sender_comp_id})")
-        # TODO: Implement actual FIX NewOrderSingle message sending here.
+
+        trade_id = f"T{self._trade_counter:06d}"
+        self._trade_counter += 1
+        trade = {
+            'id': trade_id,
+            'symbol': symbol,
+            'volume': volume,
+            'direction': direction,
+            'stop_loss': stop_loss,
+            'take_profit': take_profit,
+        }
+        self.open_trades.append(trade)
+        print(f"[{self.mode}] Trade {trade_id} opened.")
+        return trade_id
 
     def close_trade(self, trade_id: str):
         print(f"[{self.mode}] Attempting to close trade {trade_id} (SenderCompID: {self.fix_sender_comp_id})")
-        # TODO: Implement FIX order cancellation or counter-order logic.
+        for trade in list(self.open_trades):
+            if trade['id'] == trade_id:
+                self.open_trades.remove(trade)
+                print(f"[{self.mode}] Trade {trade_id} closed.")
+                return True
+        print(f"[{self.mode}] Trade {trade_id} not found.")
+        return False
 
     def get_open_trades(self) -> List[dict]:
         print(f"[{self.mode}] Fetching open trades (SenderCompID: {self.fix_sender_comp_id})")
-        # TODO: Implement FIX OrderStatusRequest or similar if applicable.
-        return []
+        return list(self.open_trades)
 
     def get_account_info(self) -> dict:
         print(f"[{self.mode}] Fetching account info (SenderCompID: {self.fix_sender_comp_id})")
-        # TODO: Implement FIX AccountInfoRequest or similar if applicable.
-        return {}
+        return self.get_account_summary()
+
+    def start_heartbeat(self, interval: float = 30.0) -> None:
+        """Start a background thread that maintains the connection."""
+        if self._running:
+            return
+
+        self._running = True
+
+        def _heartbeat_loop() -> None:
+            while self._running:
+                if not self.is_connected:
+                    self.connect()
+                time.sleep(interval)
+
+        self._heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
+        self._heartbeat_thread.start()
+
+    def stop_heartbeat(self) -> None:
+        """Stop the background heartbeat thread."""
+        self._running = False
+        if self._heartbeat_thread and self._heartbeat_thread.is_alive():
+            self._heartbeat_thread.join(timeout=1)
