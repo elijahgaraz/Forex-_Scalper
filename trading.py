@@ -16,6 +16,12 @@ class Trader:
 
         self.mode = "FIX Live" # Indicate current configuration type
 
+        # Connection state and account summary
+        self.is_connected: bool = False
+        self.connection_message: str = "Disconnected"
+        # Example structure, can be expanded based on actual data from FIX
+        self.account_summary: dict = {'balance': 0.0, 'equity': 0.0, 'margin': 0.0}
+
         print(f"Trader initialized for {self.mode} connection.")
         print(f"  Host: {self.fix_host}:{self.fix_port}")
         print(f"  SenderCompID: {self.fix_sender_comp_id}")
@@ -23,6 +29,49 @@ class Trader:
         # Actual FIX client (e.g., QuickFIX) would be initialized and configured here.
         # For now, this is just a placeholder update.
 
+    def connect(self) -> bool:
+        """
+        Placeholder for establishing a FIX connection.
+        Simulates connection success/failure.
+        """
+        print(f"[{self.mode}] Attempting to connect...")
+        # Simulate connection logic: success if SenderCompID is set
+        if not self.fix_sender_comp_id:
+            self.is_connected = False
+            self.connection_message = "Connection Failed: SenderCompID is not set."
+            print(self.connection_message)
+            return False
+
+        if not self.fix_password: # Basic check, real FIX logon is more complex
+            self.is_connected = False
+            self.connection_message = "Connection Failed: Password is not set."
+            print(self.connection_message)
+            return False
+
+        # Simulate successful connection
+        self.is_connected = True
+        self.connection_message = "Connected"
+        self.account_summary = {'balance': 10000.00, 'equity': 10500.50, 'margin': 150.25} # Mock data
+        print(f"[{self.mode}] Successfully connected. Account Summary: {self.account_summary}")
+        return True
+
+    def disconnect(self) -> None:
+        """
+        Placeholder for closing a FIX connection.
+        """
+        print(f"[{self.mode}] Attempting to disconnect...")
+        self.is_connected = False
+        self.connection_message = "Disconnected"
+        self.account_summary = {'balance': 0.0, 'equity': 0.0, 'margin': 0.0} # Clear data
+        print(f"[{self.mode}] Successfully disconnected.")
+
+    def get_connection_status(self) -> tuple[bool, str]:
+        """Returns the current connection status and message."""
+        return self.is_connected, self.connection_message
+
+    def get_account_summary(self) -> dict:
+        """Returns the current account summary data."""
+        return self.account_summary.copy() # Return a copy to prevent external modification
 
     def open_trade(self, symbol: str, volume: float, direction: str, stop_loss: Optional[float] = None, take_profit: Optional[float] = None):
         """Open a trade. Direction should be 'buy' or 'sell'."""
